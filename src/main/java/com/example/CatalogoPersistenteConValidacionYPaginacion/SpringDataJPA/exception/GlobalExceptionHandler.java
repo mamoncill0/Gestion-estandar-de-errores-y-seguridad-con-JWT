@@ -1,76 +1,64 @@
 package com.example.CatalogoPersistenteConValidacionYPaginacion.SpringDataJPA.exception;
 
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.validation.FieldError;
+import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.time.LocalDateTime;
+import java.net.URI;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
-@ControllerAdvice
+@RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // -------------------------
-    // 400 - BAD REQUEST
-    // -------------------------
-    @ExceptionHandler(BadRequestException.class)
-    public ResponseEntity<Object> handleBadRequest(BadRequestException ex) {
-        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
-    }
-
-    // -------------------------
-    // 404 - NOT FOUND
-    // -------------------------
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<Object> handleNotFound(ResourceNotFoundException ex) {
-        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
-    }
-
-    // -------------------------
-    // 409 - CONFLICT
-    // -------------------------
-    @ExceptionHandler(DuplicateResourceException.class)
-    public ResponseEntity<Object> handleConflict(DuplicateResourceException ex) {
-        return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
-    }
-
-    // ---------------------------------------------------
-    // Validación de @Valid (MethodArgumentNotValidException)
-    // Devuelve un JSON con errores por cada campo inválido
-    // ---------------------------------------------------
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Object> handleValidationErrors(MethodArgumentNotValidException ex) {
+    public ProblemDetail handleMethodArgumentNotValidException(MethodArgumentNotValidException ex) {
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "La solicitud tiene errores de validación.");
+        problemDetail.setTitle("Error de Validación");
+        problemDetail.setType(URI.create("https://example.com/errors/validation-error"));
+        problemDetail.setProperty("timestamp", Instant.now());
+        problemDetail.setProperty("traceId", MDC.get("traceId"));
 
-        Map<String, Object> errors = new HashMap<>();
-        Map<String, String> fields = new HashMap<>();
+        Map<String, String> errors = new HashMap<>();
+        ex.getBindingResult().getFieldErrors().forEach(error -> errors.put(error.getField(), error.getDefaultMessage()));
+        problemDetail.setProperty("errors", errors);
 
-        ex.getBindingResult().getAllErrors().forEach(err -> {
-            String fieldName = ((FieldError) err).getField();
-            String errorMessage = err.getDefaultMessage();
-            fields.put(fieldName, errorMessage);
-        });
-
-        errors.put("timestamp", LocalDateTime.now());
-        errors.put("status", HttpStatus.BAD_REQUEST.value());
-        errors.put("errors", fields);
-
-        return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
+        return problemDetail;
     }
 
-    // -------------------------
-    // UTILIDAD PARA FORMATO JSON
-    // -------------------------
-    private ResponseEntity<Object> buildResponse(HttpStatus status, String message) {
-
-        Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", LocalDateTime.now());
-        body.put("status", status.value());
-        body.put("error", message);
-
-        return new ResponseEntity<>(body, status);
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ProblemDetail handleResourceNotFoundException(ResourceNotFoundException ex) {
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        problemDetail.setTitle("Recurso No Encontrado");
+        problemDetail.setType(URI.create("https://example.com/errors/not-found"));
+        problemDetail.setProperty("timestamp", Instant.now());
+        problemDetail.setProperty("traceId", MDC.get("traceId"));
+        return problemDetail;
     }
+
+    @ExceptionHandler(DuplicateResourceException.class)
+    public ProblemDetail handleDuplicateResourceException(DuplicateResourceException ex) {
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problemDetail.setTitle("Recurso Duplicado");
+        problemDetail.setType(URI.create("https://example.com/errors/duplicate-resource"));
+        problemDetail.setProperty("timestamp", Instant.now());
+        problemDetail.setProperty("traceId", MDC.get("traceId"));
+        return problemDetail;
+    }
+
+    @ExceptionHandler(BadRequestException.class)
+    public ProblemDetail handleBadRequestException(BadRequestException ex) {
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problemDetail.setTitle("Solicitud Incorrecta");
+        problemDetail.setType(URI.create("https://example.com/errors/bad-request"));
+        problemDetail.setProperty("timestamp", Instant.now());
+        problemDetail.setProperty("traceId", MDC.get("traceId"));
+        return problemDetail;
+    }
+
+    // Puedes añadir más manejadores de excepciones aquí
 }
