@@ -21,38 +21,56 @@ public class EventService implements IEventService {
 
     private final EventRepositoryPort eventRepositoryPort;
     private final VenueRepositoryPort venueRepositoryPort;
-    private final EventMapper mapper;
+    private final EventMapper eventMapper; // ✅ Inyectas el mapper
 
-
-    public EventService(EventRepositoryPort eventRepositoryPort, VenueRepositoryPort venueRepositoryPort, EventMapper mapper) {
+    public EventService(EventRepositoryPort eventRepositoryPort,
+                        VenueRepositoryPort venueRepositoryPort,
+                        EventMapper eventMapper) {
         this.eventRepositoryPort = eventRepositoryPort;
         this.venueRepositoryPort = venueRepositoryPort;
-        this.mapper = mapper;
+        this.eventMapper = eventMapper;
     }
 
     @Override
     @Transactional
     public EventResponse create(EventRequest request) {
+        // Obtener venue
         Venue venue = venueRepositoryPort.findById(request.getVenueId())
-                .orElseThrow(() -> new ResourceNotFoundException("Venue no encontrado con el id: " + request.getVenueId()));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Venue no encontrado con el id: " + request.getVenueId()));
 
-        Event event = mapper.toDomain(request);
+        // Mapear request a dominio
+        Event event = eventMapper.toDomain(request);
+        event.setVenue(venue); // Asignar venue manualmente
+
+        // Guardar
         Event savedEvent = eventRepositoryPort.save(event);
-        return toResponse(savedEvent);
+
+        // ✅ USA EL MAPPER
+        return eventMapper.toResponse(savedEvent);
     }
 
     @Override
     @Transactional
     public EventResponse update(Integer id, EventRequest request) {
+        // Obtener evento existente
         Event existingEvent = eventRepositoryPort.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con el id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Evento no encontrado con el id: " + id));
 
+        // Obtener venue
         Venue venue = venueRepositoryPort.findById(request.getVenueId())
-                .orElseThrow(() -> new ResourceNotFoundException("Venue no encontrado con el id: " + request.getVenueId()));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Venue no encontrado con el id: " + request.getVenueId()));
 
-        updateDomainFromRequest(existingEvent, request, venue);
+        // ✅ USA EL MAPPER para actualizar
+        eventMapper.updateDomainFromRequest(request, existingEvent);
+        existingEvent.setVenue(venue);
+
+        // Guardar
         Event updatedEvent = eventRepositoryPort.save(existingEvent);
-        return toResponse(updatedEvent);
+
+        return eventMapper.toResponse(updatedEvent);
     }
 
     @Override
@@ -68,58 +86,18 @@ public class EventService implements IEventService {
     @Transactional(readOnly = true)
     public EventResponse getById(Integer id) {
         return eventRepositoryPort.findById(id)
-                .map(this::toResponse)
-                .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con el id: " + id));
+                .map(eventMapper::toResponse) // ✅ USA EL MAPPER
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Evento no encontrado con el id: " + id));
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Page<EventResponse> getAll(String city, String category, LocalDateTime startDate, Pageable pageable) {
-        return eventRepositoryPort.findAll(pageable).map(this::toResponse);
+    public Page<EventResponse> getAll(String city, String category,
+                                      LocalDateTime startDate, Pageable pageable) {
+        // Implementar filtrado usando los parámetros
+        return eventRepositoryPort.findAll(pageable)
+                .map(eventMapper::toResponse);
     }
 
-    // --- MAPPERS ---
-
-    private EventResponse toResponse(Event domain) {
-        EventResponse response = new EventResponse();
-        response.setId(domain.getId());
-        response.setNameEvent(domain.getNameEvent());
-        response.setStartTime(domain.getStartTime());
-        response.setEndTime(domain.getEndTime());
-        response.setDescription(domain.getDescription());
-        response.setCapacity(domain.getCapacity());
-        if (domain.getVenue() != null) {
-            response.setVenueId(domain.getVenue().getId());
-        }
-        return response;
-    }
-
-//    private Event toDomain(EventRequest request, Venue venue) {
-//        Event domain = new Event();
-//        domain.setNameEvent(request.getNameEvent());
-//        domain.setStartTime(request.getStartTime());
-//        domain.setEndTime(request.getEndTime());
-//        domain.setDescription(request.getDescription());
-//        domain.setCapacity(request.getCapacity());
-//        domain.setVenue(venue);
-//        return domain;
-////    private Event toDomain(EventRequest request, Venue venue) {
-//        Event domain = new Event();
-//        domain.setNameEvent(request.getNameEvent());
-//        domain.setStartTime(request.getStartTime());
-//        domain.setEndTime(request.getEndTime());
-//        domain.setDescription(request.getDescription());
-//        domain.setCapacity(request.getCapacity());
-//        domain.setVenue(venue);
-//        return domain;
-//    }
-
-    private void updateDomainFromRequest(Event domain, EventRequest request, Venue venue) {
-        domain.setNameEvent(request.getNameEvent());
-        domain.setStartTime(request.getStartTime());
-        domain.setEndTime(request.getEndTime());
-        domain.setDescription(request.getDescription());
-        domain.setCapacity(request.getCapacity());
-        domain.setVenue(venue);
-    }
 }

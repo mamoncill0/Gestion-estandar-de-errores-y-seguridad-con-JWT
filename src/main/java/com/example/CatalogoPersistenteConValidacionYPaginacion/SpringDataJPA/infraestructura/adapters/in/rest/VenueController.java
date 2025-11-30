@@ -18,8 +18,11 @@ public class VenueController {
 
     private static final Logger log = LoggerFactory.getLogger(VenueController.class);
 
-    @Autowired
-    private IVenueService venueService;
+    private final IVenueService venueService;
+
+    public VenueController(IVenueService venueService) {
+        this.venueService = venueService;
+    }
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")

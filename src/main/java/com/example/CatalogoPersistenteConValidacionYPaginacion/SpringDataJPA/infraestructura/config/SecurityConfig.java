@@ -26,11 +26,21 @@ import java.util.Arrays;
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
-    @Autowired
-    private JwtAuthenticationFilter jwtAuthenticationFilter;
+//    @Autowired
+//    private JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    @Autowired
-    private JwtAuthenticationEntryPoint unauthorizedHandler;
+//    @Autowired
+//    private JwtAuthenticationEntryPoint unauthorizedHandler;
+
+    // Siempre es mejor usar Java puro para inyectar un constructor antes que usar anotaciones
+
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final JwtAuthenticationEntryPoint unauthorizedHandler;
+
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter, JwtAuthenticationEntryPoint unauthorizedHandler) {
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.unauthorizedHandler = unauthorizedHandler;
+    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {

@@ -20,8 +20,14 @@ public class EventController {
 
     private static final Logger log = LoggerFactory.getLogger(EventController.class);
 
-    @Autowired
-    private IEventService eventService;
+    //Es mejor usar esto, antes que el Autowired
+    //private IEventService eventService; ✖️
+    private final IEventService eventService; // 👍
+
+    //Al usar el private final se debe hacer un constructor
+    public EventController(IEventService eventService) {
+        this.eventService = eventService;
+    }
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
